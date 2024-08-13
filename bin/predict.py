@@ -6,7 +6,6 @@ from pathlib import Path
 
 from codetiming import Timer
 from dotenv import load_dotenv
-from knockknock import slack_sender
 from ml_collections import config_dict
 import numpy as np
 import shortuuid
@@ -186,10 +185,10 @@ def sample(sampling_fn, state, config, eval_dl, target_transform):
     cf_data_vars = {
         key: eval_dl.dataset.ds.data_vars[key]
         for key in [
-            "rotated_latitude_longitude",
+            "latitude_longitude",
             "time_bnds",
-            "grid_latitude_bnds",
-            "grid_longitude_bnds",
+            "latitude_bnds",
+            "longitude_bnds",
         ]
     }
 
@@ -234,7 +233,6 @@ def sample(sampling_fn, state, config, eval_dl, target_transform):
 
 @app.command()
 @Timer(name="sample", text="{name}: {minutes:.1f} minutes", logger=logger.info)
-@slack_sender(webhook_url=os.getenv("KK_SLACK_WH_URL"), channel="general")
 def main(
     workdir: Path,
     dataset: str = typer.Option(...),
@@ -283,7 +281,7 @@ def main(
         config.data.target_transform_key,
         transform_dir,
         split=split,
-        ensemble_members=[ensemble_member],
+        ensemble_members=[int(ensemble_member)],
         include_time_inputs=config.data.time_inputs,
         evaluation=True,
         batch_size=config.eval.batch_size,

@@ -1,6 +1,5 @@
 from codetiming import Timer
 import logging
-from knockknock import slack_sender
 from ml_collections import config_dict
 import os
 from pathlib import Path
@@ -53,7 +52,6 @@ def load_model(config, num_predictors, ckpt_filename):
 
 @app.command()
 @Timer(name="sample", text="{name}: {minutes:.1f} minutes", logger=logging.info)
-@slack_sender(webhook_url=os.getenv("KK_SLACK_WH_URL"), channel="general")
 def sample(
     workdir: Path,
     dataset: str = typer.Option(...),
@@ -122,7 +120,6 @@ def sample(
 
 @app.command()
 @Timer(name="sample", text="{name}: {minutes:.1f} minutes", logger=logging.info)
-@slack_sender(webhook_url=os.getenv("KK_SLACK_WH_URL"), channel="general")
 def sample_id(
     workdir: Path,
     dataset: str = typer.Option(...),

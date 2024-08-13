@@ -23,9 +23,9 @@ def generate_np_samples(model, cond_batch):
 def np_samples_to_xr(np_samples, coords, target_transform, cf_data_vars):
     coords = {**dict(coords)}
 
-    pred_pr_dims = ["ensemble_member", "time", "grid_latitude", "grid_longitude"]
+    pred_pr_dims = ["ensemble_member", "time", "latitude", "longitude"]
     pred_pr_attrs = {
-        "grid_mapping": "rotated_latitude_longitude",
+        "grid_mapping": "latitude_longitude",
         "standard_name": "pred_pr",
         "units": "kg m-2 s-1",
     }
@@ -47,10 +47,10 @@ def sample(model, eval_dl, target_transform):
     cf_data_vars = {
         key: eval_dl.dataset.ds.data_vars[key]
         for key in [
-            "rotated_latitude_longitude",
+            "latitude_longitude",
             "time_bnds",
-            "grid_latitude_bnds",
-            "grid_longitude_bnds",
+            "latitude_bnds",
+            "longitude_bnds",
         ]
     }
     preds = []
@@ -88,10 +88,10 @@ def sample_id(variable: str, eval_ds: xr.Dataset) -> xr.Dataset:
     cf_data_vars = {
         key: eval_ds.data_vars[key]
         for key in [
-            "rotated_latitude_longitude",
+            "latitude_longitude",
             "time_bnds",
-            "grid_latitude_bnds",
-            "grid_longitude_bnds",
+            "latitude_bnds",
+            "longitude_bnds",
         ]
         if key in eval_ds.variables
     }
