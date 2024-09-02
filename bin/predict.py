@@ -128,6 +128,7 @@ def load_model(config, ckpt_filename):
     state["ema"].copy_to(state["model"].parameters())
 
     # Sampling
+
     num_output_channels = len(get_variables(config.data.dataset_name)[1])
     sampling_shape = (
         config.eval.batch_size,
@@ -145,36 +146,52 @@ def generate_np_samples(sampling_fn, score_model, config, cond_batch):
 
     samples = sampling_fn(score_model, cond_batch)[0]
     # drop the feature channel dimension (only have target pr as output)
-    samples = samples.squeeze(dim=1)
+    # samples = samples.squeeze(dim=1)
     # extract numpy array
     samples = samples.cpu().numpy()
     return samples
 
 
-def np_samples_to_xr(np_samples, target_transform, coords, cf_data_vars):
+def np_samples_to_xr(np_samples, target_transform, coords, cf_data_vars, out_vars):
     coords = {**dict(coords)}
+    pred_dims = ["ensemble_member", "time", "grid_latitude", "grid_longitude"]
 
-    pred_pr_dims = ["ensemble_member", "time", "grid_latitude", "grid_longitude"]
-    pred_pr_attrs = {
-        "grid_mapping": "rotated_latitude_longitude",
-        "standard_name": "pred_pr",
-        "units": "kg m-2 s-1",
+    var_attrs = {
+        "target_pr": {
+            "grid_mapping": "rotated_latitude_longitude",
+            "standard_name": "pred_pr",
+            "units": "mm day-1",
+        },
+        "target_psl": {
+            "grid_mapping": "rotated_latitude_longitude",
+            "standard_name": "psl",
+            "units": "Pa",
+        },
+        "target_huss": {
+            "grid_mapping": "rotated_latitude_longitude",
+            "standard_name": "huss",
+            "units": "1",
+        },
     }
     # add ensemble member axis to np samples
     np_samples = np_samples[np.newaxis, :]
-    pred_pr_var = (pred_pr_dims, np_samples, pred_pr_attrs)
-    raw_pred_var = (
-        pred_pr_dims,
-        np_samples,
-        {"grid_mapping": "rotated_latitude_longitude"},
-    )
-    data_vars = {**cf_data_vars, "target_pr": pred_pr_var, "raw_pred": raw_pred_var}
-
+    data_vars = {**cf_data_vars}
+    for i, var in enumerate(out_vars):
+        np_sample_var = np_samples[:, :, i, :, :]
+        pred_var = (pred_dims, np_sample_var, var_attrs[var])
+        raw_pred_var = (
+            pred_dims,
+            np_sample_var,
+            {"grid_mapping": "rotated_latitude_longitude"},
+        )
+        data_vars[var] = pred_var
+        data_vars[var.replace("target", "raw_pred")] = raw_pred_var
     samples_ds = target_transform.invert(
         xr.Dataset(data_vars=data_vars, coords=coords, attrs={})
     )
-    samples_ds = samples_ds.rename({"target_pr": "pred_pr"})
-    samples_ds["pred_pr"] = samples_ds["pred_pr"].assign_attrs(pred_pr_attrs)
+    for var in out_vars:
+        samples_ds[var] = samples_ds[var].assign_attrs(var_attrs[var])
+        samples_ds = samples_ds.rename({var: var_attrs[var]['standard_name']})
     return samples_ds
 
 
@@ -193,6 +210,7 @@ def sample(sampling_fn, state, config, eval_dl, target_transform):
     }
 
     preds = []
+    out_vars = get_variables(config.data.dataset_name)[1]
     with logging_redirect_tqdm():
         with tqdm(
             total=len(eval_dl.dataset),
@@ -210,10 +228,7 @@ def sample(sampling_fn, state, config, eval_dl, target_transform):
                 )
 
                 xr_samples = np_samples_to_xr(
-                    np_samples,
-                    target_transform,
-                    coords,
-                    cf_data_vars,
+                    np_samples, target_transform, coords, cf_data_vars, out_vars
                 )
 
                 preds.append(xr_samples)
@@ -287,11 +302,12 @@ def main(
         batch_size=config.eval.batch_size,
         shuffle=False,
     )
-
     ckpt_filename = os.path.join(workdir, "checkpoints", f"{checkpoint}.pth")
     logger.info(f"Loading model from {ckpt_filename}")
     state, sampling_fn = load_model(config, ckpt_filename)
+    from mlde_utils.training.dataset import get_dataset, get_variables
 
+    variables, target_variables = get_variables(config.data.dataset_name)
     for sample_id in range(num_samples):
         typer.echo(f"Sample run {sample_id}...")
         xr_samples = sample(sampling_fn, state, config, eval_dl, target_transform)
