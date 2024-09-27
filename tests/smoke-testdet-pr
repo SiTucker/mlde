@@ -1,0 +1,25 @@
+#! /usr/bin/env bash
+
+set -euo pipefail
+
+config_name="south_africa_lowres_twomem_pr_unet"
+dataset="fullres_pr"
+
+workdir="output/test/${config_name}/${dataset}/test-run"
+config_path="src/ml_downscaling_emulator/deterministic/configs/${config_name}.py"
+
+#train_batch_size=2
+epoch=20
+
+rm -rf ${workdir}
+WANDB_EXPERIMENT_NAME="test-unet"  python bin/deterministic/main.py --workdir ${workdir} --config ${config_path} --mode train --config.data.dataset_name=${dataset} --config.training.snapshot_freq=5 --config.training.eval_freq=100 --config.training.log_freq=50 --config.training.n_epochs=${epoch}  --config.data.input_transform_key=sqrturrecen --config.data.target_transform_key=sqrturrecen --config.data.time_inputs=True
+
+
+num_samples=2
+eval_batchsize=32
+checkpoint="epoch_${epoch}"
+#
+#rm -rf "${workdir}/samples/${checkpoint}/${dataset}"
+
+mlde evaluate sample ${workdir} --dataset ${dataset} --checkpoint epoch_${epoch} --batch-size ${eval_batchsize} --num-samples ${num_samples} --ensemble-member 282
+
