@@ -1,0 +1,18 @@
+#! /usr/bin/env bash
+
+set -euo pipefail
+
+config_name="southern_africa128_fullres_pr_cmip_cncsnpp_continuous"
+train_dataset="step2_comb_t128_all-no-hum"
+
+sde="subvpsde"
+workdir="output/test/${sde}/${config_name}/${train_dataset}/test-run"
+config_path="src/ml_downscaling_emulator/score_sde_pytorch/configs/${sde}/${config_name}.py"
+
+loc_spec_channels=0
+epoch=300
+
+#rm -rf ${workdir}
+WANDB_EXPERIMENT_NAME="${train_dataset}"  python bin/main.py --workdir ${workdir} --config ${config_path} --mode train --config.data.dataset_name=${train_dataset} --config.training.snapshot_freq=5 --config.training.eval_freq=100 --config.training.log_freq=50 --config.training.n_epochs=${epoch} --config.model.loc_spec_channels=${loc_spec_channels}   --config.data.input_transform_key=stan 
+
+#

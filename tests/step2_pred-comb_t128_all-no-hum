@@ -1,0 +1,38 @@
+#! /usr/bin/env bash
+
+set -euo pipefail
+
+config_name="southern_africa128_fullres_pr_cmip_cncsnpp_continuous"
+vtag="t128_all-no-hum"
+train_dataset="step2_comb_${vtag}"
+hist_dataset="step2_hist_only_${vtag}"
+fut_dataset="step2_fut_only_${vtag}"
+era_dataset="step2_curr_only_${vtag}"
+hadgem3_hist_dataset="step2_hist_only_hadgem3_${vtag}" 
+hadgem3_fut_dataset="step2_fut_only_hadgem3_${vtag}" 
+
+sde="subvpsde"
+workdir="output/test/${sde}/${config_name}/${train_dataset}/test-run"
+config_path="src/ml_downscaling_emulator/score_sde_pytorch/configs/${sde}/${config_name}.py"
+
+loc_spec_channels=0
+epoch=300
+
+
+num_samples=1
+eval_batchsize=32
+checkpoint="epoch_${epoch}"
+
+#rm -rf "${workdir}/samples/${checkpoint}/${dataset}"
+for member in 42 77 174 272
+do
+    python bin/predict.py ${workdir} --dataset ${hist_dataset} --checkpoint ${checkpoint} --batch-size ${eval_batchsize} --num-samples ${num_samples} --ensemble-member ${member} --split test --input-transform-dataset=${train_dataset}
+    python bin/predict.py ${workdir} --dataset ${fut_dataset} --checkpoint ${checkpoint} --batch-size ${eval_batchsize} --num-samples ${num_samples} --ensemble-member ${member} --split test --input-transform-dataset=${train_dataset}
+done
+
+
+python bin/predict.py ${workdir} --dataset ${era_dataset}  --checkpoint ${checkpoint} --batch-size ${eval_batchsize} --num-samples ${num_samples} --ensemble-member 283 --split test --input-transform-dataset=${train_dataset}
+python bin/predict.py ${workdir} --dataset ${hadgem3_hist_dataset}  --checkpoint ${checkpoint} --batch-size ${eval_batchsize} --num-samples ${num_samples} --ensemble-member 129 --split test --input-transform-dataset=${train_dataset}
+python bin/predict.py ${workdir} --dataset ${hadgem3_fut_dataset}  --checkpoint ${checkpoint} --batch-size ${eval_batchsize} --num-samples ${num_samples} --ensemble-member 129 --split test --input-transform-dataset=${train_dataset}
+
+
