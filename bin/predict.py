@@ -19,7 +19,7 @@ import yaml
 
 from ml_downscaling_emulator.data import get_dataloader
 from mlde_utils import samples_path, DEFAULT_ENSEMBLE_MEMBER
-from mlde_utils.training.dataset import get_variables
+from mlde_utils.training.dataset import  get_dataset,  get_variables
 
 from ml_downscaling_emulator.score_sde_pytorch.losses import get_optimizer
 from ml_downscaling_emulator.score_sde_pytorch.models.ema import (
@@ -154,21 +154,21 @@ def generate_np_samples(sampling_fn, score_model, config, cond_batch):
 
 def np_samples_to_xr(np_samples, target_transform, coords, cf_data_vars, out_vars):
     coords = {**dict(coords)}
-    pred_dims = ["ensemble_member", "time", "grid_latitude", "grid_longitude"]
+    pred_dims = ["ensemble_member", "time", "latitude", "longitude"]
 
     var_attrs = {
         "target_pr": {
-            "grid_mapping": "rotated_latitude_longitude",
+            "grid_mapping": "latitude_longitude",
             "standard_name": "pred_pr",
             "units": "mm day-1",
         },
         "target_psl": {
-            "grid_mapping": "rotated_latitude_longitude",
+            "grid_mapping": "latitude_longitude",
             "standard_name": "psl",
             "units": "Pa",
         },
         "target_huss": {
-            "grid_mapping": "rotated_latitude_longitude",
+            "grid_mapping": "latitude_longitude",
             "standard_name": "huss",
             "units": "1",
         },
@@ -182,7 +182,7 @@ def np_samples_to_xr(np_samples, target_transform, coords, cf_data_vars, out_var
         raw_pred_var = (
             pred_dims,
             np_sample_var,
-            {"grid_mapping": "rotated_latitude_longitude"},
+            {"grid_mapping": var_attrs[var]["grid_mapping"]},
         )
         data_vars[var] = pred_var
         data_vars[var.replace("target", "raw_pred")] = raw_pred_var
@@ -305,7 +305,6 @@ def main(
     ckpt_filename = os.path.join(workdir, "checkpoints", f"{checkpoint}.pth")
     logger.info(f"Loading model from {ckpt_filename}")
     state, sampling_fn = load_model(config, ckpt_filename)
-    from mlde_utils.training.dataset import get_dataset, get_variables
 
     variables, target_variables = get_variables(config.data.dataset_name)
     for sample_id in range(num_samples):

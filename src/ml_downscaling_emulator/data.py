@@ -20,6 +20,7 @@ class UKCPLocalDataset(Dataset):
         self.target_variables = target_variables
         self.time_range = time_range
 
+
     @classmethod
     def variables_to_tensor(cls, ds, variables):
         return torch.tensor(
