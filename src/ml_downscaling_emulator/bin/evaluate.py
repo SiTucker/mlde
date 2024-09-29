@@ -97,7 +97,7 @@ def sample(
         config.data.target_transform_key,
         transform_dir,
         split=split,
-        ensemble_members=[ensemble_member],
+        ensemble_members=[int(ensemble_member)],
         include_time_inputs=config.data.time_inputs,
         evaluation=True,
         batch_size=config.eval.batch_size,

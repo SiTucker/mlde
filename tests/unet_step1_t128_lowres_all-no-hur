@@ -1,0 +1,31 @@
+#! /usr/bin/env bash
+
+set -euo pipefail
+config_name="southern_africa_128_twomem_pr_unet"
+dataset="step1_comb_t128_all-no-hum"
+
+workdir="output/test/${config_name}/${dataset}/test-run"
+config_path="src/ml_downscaling_emulator/deterministic/configs/${config_name}.py"
+
+#train_batch_size=2
+epoch=100
+
+#rm -rf ${workdir}
+WANDB_EXPERIMENT_NAME="test-unet"  python bin/deterministic/main.py --workdir ${workdir} --config ${config_path} --mode train --config.data.dataset_name=${dataset} --config.training.snapshot_freq=5 --config.training.eval_freq=100 --config.training.log_freq=50 --config.training.n_epochs=${epoch}  --config.data.input_transform_key=stan --config.data.target_transform_key=sqrturrecen
+
+num_samples=1
+eval_batchsize=32
+checkpoint="epoch_${epoch}"
+
+
+vtag="t128_lowres_all-no-hum"
+train_dataset="step1_comb_${vtag}"
+hadgem3_dataset="step1_comb_hadgem3_${vtag}" 
+
+#
+#rm -rf "${workdir}/samples/${checkpoint}/${dataset}"
+for member in 42 77 174 272
+do
+  mlde evaluate sample ${workdir} --dataset ${train_dataset} --checkpoint epoch_${epoch} --batch-size ${eval_batchsize} --num-samples ${num_samples} --ensemble-member $member --split=test --input-transform-dataset=${train_dataset}
+done
+mlde evaluate sample ${workdir} --dataset ${hadgem3_dataset} --checkpoint epoch_${epoch} --batch-size ${eval_batchsize} --num-samples ${num_samples} --ensemble-member 129 --split=test --input-transform-dataset=${train_dataset}
